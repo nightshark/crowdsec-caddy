@@ -1,0 +1,38 @@
+services:
+  crowdsec:
+    image: docker.io/crowdsecurity/crowdsec:latest
+    container_name: crowdsec
+    environment:
+      - GID=1000
+      - COLLECTIONS=crowdsecurity/caddy LePresidente/authelia crowdsecurity/http-cve crowdsecurity/whitelist-good-actors crowdsecurity/iptables crowdsecurity/linux crowdsecurity/sshd
+      - CUSTOM_HOSTNAME=routetohome
+     #- BOUNCER_KEY_CADDY=${CROWDSEC_API_KEY}
+     # - DISABLE_PARSERS=crowdsecurity/whitelists
+     # - CROWDSEC_API_KEY=yourKey
+    volumes:
+      - /docker/appdata/crowdsec/data:/var/lib/crowdsec/data/
+      - /docker/appdata/crowdsec/config:/etc/crowdsec
+      - /docker/appdata/crowdsec/config/acquis.yaml:/etc/crowdsec/acquis.yaml
+      - /var/log/crowdsec:/var/log/crowdsec:rw
+      - /var/log/:/var/log/host:ro
+      - /docker/appdata/caddy2/logs:/var/log/caddy:ro
+      - /docker/appdata/authelia/config:/var/log/authelia:ro
+      - /docker/appdata/authelia/log:/var/log/authelia:ro
+    networks:
+      - caddy2
+
+    ports:
+      - 8282:8080
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges=true
+    labels:
+      com.centurylinklabs.watchtower.monitor-only: true
+      com.centurylinklabs.watchtower.enable: true
+
+networks:
+  caddy2:
+     name: caddy2
+   #caddy:
+    # name: caddy
+     external: true

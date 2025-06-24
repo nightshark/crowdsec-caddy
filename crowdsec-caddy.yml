@@ -1,0 +1,92 @@
+services:
+  caddy:
+    image: serfriz/caddy-cloudflare-ddns-crowdsec-geoip-security-dockerproxy:latest
+    container_name: caddy2
+    hostname: caddy2
+    restart: "unless-stopped"
+    ports:
+      - 443:443
+      #- 2019:2019
+    expose:
+      - "9000"
+
+    #command: ["caddy", "docker-proxy"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+     # - /docker/appdata/caddy2/Caddyfile:/etc/caddy/Caddyfile  # to use your own Caddyfile
+      - /docker/appdata/caddy2/data:/data
+      - /docker/appdata/caddy2/config:/config
+      - /docker/appdata/caddy2/logs:/logs
+      - /docker/appdata/hugo/soccer/public:/www
+    environment:
+    
+      - CADDY_INGRESS_NETWORKS=caddy2 #add comma seperated values here
+    labels:
+      # Watchtower labels to only notify, not update.
+      
+      com.centurylinklabs.watchtower.monitor-only: true
+      com.centurylinklabs.watchtower.enable: true
+
+      #caddy-docker-proxy labels
+      #caddy.debug: true
+      #caddy.admin: "0.0.0.0:2019"
+      caddy.metrics: 
+      caddy_15: ":9000" #https://github.com/lucaslorentz/caddy-docker-proxy/issues/246
+      caddy_15.metrics: "" 
+      caddy.email: "email@yourDomain.org"
+      caddy.order: "crowdsec first" # forces the CrowdSec directive to be executed first
+      caddy.log.output: "file /logs/access-caddy.log"
+      caddy_1.log.output: "stdout"
+      #caddy.crowdsec.api_url: http://192.168.1.197:8282/ <- I get connection refused from Crowdsec using this address.
+      #caddy_1: (logfile)
+      #caddy_1.1_log.output: "file /logs/access-caddy.log"
+      #caddy_1.2_log.output: "stdout"
+
+      caddy.crowdsec.api_url: http://crowdsec:8080 
+      
+      caddy.crowdsec.api_key: $CROWDSEC_API_KEY
+      caddy.crowdsec.ticker_interval: 10s
+      #caddy.crowdsec.disable_streaming:
+      #caddy.crowdsec.enable_hard_fails:
+      caddy_0: (auth)
+      caddy_0.forward_auth: authelia:9091
+      caddy_0.forward_auth.uri: https://auth.yourDomain.org/api/authz/forward-auth
+      caddy_0.forward_auth.copy_headers: Remote-User Remote-Groups Remote-Name Remote-Email
+      #caddy.servers.trusted_proxies: "static 172.22.0.0/24 192.168.1.0/24 173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 104.24.0.0/14 172.64.0.0/13 131.0.72.0/22"
+
+      #caddy.servers.metrics:
+      caddy.servers.trusted_proxies_strict:
+      caddy.servers.trusted_proxies: "cloudflare"
+      caddy.servers.trusted_proxies.interval: "12h"
+      caddy.servers.trusted_proxies.timeout: "15s"
+
+ #https://caddyserver.com/docs/caddyfile/options#trusted-proxies
+      #caddy_1: (logfile)
+      #caddy_1.log.format: "console"
+      #caddy_1.log.output: "file /logs/access-caddy.log"
+      #caddy_1.log.output.roll_size: "2mb"
+      #caddy_1.log.output.keep: "10"
+      #caddy_1.log.output.roll_keep_for: "720h"
+
+
+      caddy_2: (access-log)
+      #caddy_2.log.format: "console"
+      caddy_2.log.output: "file /logs/{args[0]}.log"
+      caddy_2.log.output.roll_size: "2mb"
+      caddy_2.log.output.roll_keep: "10"
+      #caddy_2.log.output.roll_keep_for: "720h"
+      #caddy_3.log.output: "stdout"
+      #caddy_3.log.format: "console" #This fixes the time stamps to be readable, not UNIX time.
+
+      caddy_3: someSite.yourDomain.org
+      caddy_3.import: "access-log hugo"
+      caddy_3.crowdsec:
+      caddy_3.root: "* /www"
+      #caddy.root: "* /public"
+      caddy_3.file_server:
+      caddy_3.tls.dns: ${cloudflare}
+      
+networks:
+  caddy2:
+    name: caddy2
+    external: true
